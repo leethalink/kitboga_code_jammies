@@ -1,84 +1,907 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Joel</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skip Ad Trap</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-  <style type="text/css">
-    html,
-    body {
-      background: transparent;
+    html, body {
       margin: 0;
       padding: 0;
-      font-family: sans-serif;
-    }
-
-    #overlay-container {
-      width: 960px;
-      height: 540px;
-    }
-
-    /* Your style here... (feel free to remove this example styling) */
-    #skip {
-      display: none; /* Hidden until ad starts */
-      position: absolute;
-      bottom: 60px;
-      right: 0;
-      padding: 10px 18px;
-      background: rgba(0, 0, 0, 0.6);
-      border: 1px solid black;
-      border-right-width: 0;
-      font-size: 1.2rem;
-      border-radius: 4px 0 0 4px;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      font-family: Arial, Helvetica, sans-serif;
       color: white;
+    }
+
+    body {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .skip-button {
+      position: absolute;
+      right: 24px;
+      bottom: 24px;
+      background: rgba(15, 23, 42, 0.94);
+      color: #ffffff;
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-size: 15px;
+      font-weight: 600;
       cursor: pointer;
+      z-index: 20;
+    }
+
+    .skip-button:hover {
+      background: rgba(30, 41, 59, 1);
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 30;
+      padding-top: 20px;
+    }
+
+    .overlay.show {
+      display: flex;
+    }
+
+    .panel {
+      width: min(520px, 74%);
+      background: rgba(12, 23, 48, 0.86);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 18px;
+      padding: 18px 20px 16px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+      pointer-events: auto;
+      backdrop-filter: blur(2px);
+    }
+
+    .panel h1 {
+      margin: 0 0 6px 0;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    .status-line {
+      margin-top: 2px;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    .dev-line {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #86efac;
+      opacity: 0.95;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .board {
+      display: grid;
+      grid-template-rows: repeat(5, 1fr);
+      gap: 6px;
+      margin: 16px auto 14px;
+      width: fit-content;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, 48px);
+      gap: 6px;
+    }
+
+    .tile {
+      width: 48px;
+      height: 48px;
+      border-radius: 9px;
+      border: 2px solid #475569;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .tile.filled {
+      border-color: #94a3b8;
+    }
+
+    .tile.active {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35);
+    }
+
+    .tile.correct {
+      background: #16a34a;
+      border-color: #16a34a;
+      color: white;
+    }
+
+    .tile.present {
+      background: #ca8a04;
+      border-color: #ca8a04;
+      color: white;
+    }
+
+    .tile.absent {
+      background: #475569;
+      border-color: #475569;
+      color: white;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .guess-input {
+      width: 150px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: #1e293b;
+      color: white;
+      font-size: 15px;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+
+    .guess-input:focus {
+      outline: none;
+      border-color: #60a5fa;
+    }
+
+    .submit-button,
+    .back-button,
+    .retry-button,
+    .verify-button {
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: white;
+    }
+
+    .submit-button {
+      background: #2563eb;
+    }
+
+    .submit-button:hover {
+      background: #1d4ed8;
+    }
+
+    .submit-button:disabled {
+      background: #334155;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .back-button,
+    .retry-button,
+    .verify-button {
+      background: #1e293b;
+    }
+
+    .back-button:hover,
+    .retry-button:hover,
+    .verify-button:hover {
+      background: #334155;
+    }
+
+    .retry-button,
+    .verify-button {
+      display: none;
+    }
+
+    .retry-button.show,
+    .verify-button.show {
+      display: inline-block;
+    }
+
+    .message {
+      min-height: 42px;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #cbd5e1;
+      line-height: 1.35;
+    }
+
+    .message.success {
+      color: #86efac;
+      font-weight: 600;
+    }
+
+    .message.fail {
+      color: #fcd34d;
+      font-weight: 600;
+    }
+
+    .message.info {
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+
+    .loading-wrap {
+      margin-top: 4px;
+    }
+
+    .loading-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .loading-subtitle {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 16px;
+    }
+
+    .progress-shell {
+      width: 100%;
+      max-width: 360px;
+      height: 18px;
+      margin: 0 auto;
+      background: #1e293b;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #22c55e);
+      transition: width 0.2s linear;
+    }
+
+    .progress-percent {
+      margin-top: 10px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .progress-text {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #e2e8f0;
+      min-height: 20px;
+    }
+
+    .verify-row {
+      margin-top: 18px;
+
+      .speedup-row {
+      margin-top: 12px;
+    }
+
+    .speedup-button {
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: white;
+      background: #1e293b;
+    }
+
+    .speedup-button:hover {
+      background: #334155;
+    }
     }
   </style>
 </head>
-
 <body>
-  <div id="overlay-container">
-    <!-- We've added a sample button. Feel free to remove it: -->
-    <button id="skip">
-      Skip Ad...
-    </button>
+  <button class="skip-button" id="skipButton">Skip Ad</button>
+
+  <div class="overlay" id="gameOverlay">
+    <div class="panel">
+      <div id="gameSection">
+        <h1>Guess the WORD to SKIP!</h1>
+        <div class="status-line" id="statusLine">Guess 1 of 5</div>
+        <div class="dev-line hidden" id="devLine">answer: -----</div>
+
+        <div class="board">
+          <div class="row">
+            <div class="tile" data-row="0" data-col="0"></div>
+            <div class="tile" data-row="0" data-col="1"></div>
+            <div class="tile" data-row="0" data-col="2"></div>
+            <div class="tile" data-row="0" data-col="3"></div>
+            <div class="tile" data-row="0" data-col="4"></div>
+          </div>
+          <div class="row">
+            <div class="tile" data-row="1" data-col="0"></div>
+            <div class="tile" data-row="1" data-col="1"></div>
+            <div class="tile" data-row="1" data-col="2"></div>
+            <div class="tile" data-row="1" data-col="3"></div>
+            <div class="tile" data-row="1" data-col="4"></div>
+          </div>
+          <div class="row">
+            <div class="tile" data-row="2" data-col="0"></div>
+            <div class="tile" data-row="2" data-col="1"></div>
+            <div class="tile" data-row="2" data-col="2"></div>
+            <div class="tile" data-row="2" data-col="3"></div>
+            <div class="tile" data-row="2" data-col="4"></div>
+          </div>
+          <div class="row">
+            <div class="tile" data-row="3" data-col="0"></div>
+            <div class="tile" data-row="3" data-col="1"></div>
+            <div class="tile" data-row="3" data-col="2"></div>
+            <div class="tile" data-row="3" data-col="3"></div>
+            <div class="tile" data-row="3" data-col="4"></div>
+          </div>
+          <div class="row">
+            <div class="tile" data-row="4" data-col="0"></div>
+            <div class="tile" data-row="4" data-col="1"></div>
+            <div class="tile" data-row="4" data-col="2"></div>
+            <div class="tile" data-row="4" data-col="3"></div>
+            <div class="tile" data-row="4" data-col="4"></div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <input
+            type="text"
+            id="guessInput"
+            class="guess-input"
+            maxlength="5"
+            placeholder="GUESS"
+            autocomplete="off"
+          />
+          <button class="submit-button" id="submitButton">Submit</button>
+          <button class="retry-button" id="retryButton">Try Again</button>
+          <button class="back-button" id="backButton">Back</button>
+        </div>
+
+        <div class="message" id="message"></div>
+      </div>
+
+      <div id="splashSection" class="hidden">
+        <div class="loading-wrap">
+          <div class="loading-title" style="color:#86efac;">CORRECT!!!</div>
+          <div class="loading-subtitle">Skip token accepted.</div>
+        </div>
+      </div>
+
+      <div id="loadingSection" class="hidden">
+        <div class="loading-wrap">
+          <div class="loading-title">Loading Skip...</div>
+          <div class="loading-subtitle">Please wait.</div>
+
+          <div class="progress-shell">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+
+      <div class="progress-percent" id="progressPercent">0%</div>
+      <div class="progress-text" id="progressText">Starting verification pipeline...</div>
+
+      <div class="speedup-row hidden" id="speedupRow">
+        <button class="speedup-button" id="speedupButton">Click to speed up</button>
+      </div>
+
+      <div class="verify-row">
+        <button class="verify-button" id="verifyButton">Verify Again</button>
+      </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script type="text/javascript">
-    (function(window, document){
-      // This is how you tell the parent window that the ad was successfully skipped.
-      function adSuccess() {
-        window.top.postMessage({ type: 'success' }, '*');
+  <script>
+    const MAX_ROWS = 5;
+
+    // Curated starter bank. We can expand this later.
+    const WORD_FAMILIES = [
+      // Dense sibling families: best for burning guesses naturally
+      { label: "_OUND", words: ["BOUND", "FOUND", "HOUND", "MOUND", "POUND", "ROUND", "SOUND", "WOUND"] },
+      { label: "_IGHT", words: ["FIGHT", "LIGHT", "MIGHT", "NIGHT", "RIGHT", "SIGHT", "TIGHT"] },
+      { label: "_ATCH", words: ["BATCH", "CATCH", "HATCH", "LATCH", "MATCH", "PATCH", "WATCH"] },
+      { label: "_EACH", words: ["BEACH", "LEACH", "PEACH", "REACH", "TEACH"] },
+      { label: "_AUNT", words: ["DAUNT", "GAUNT", "HAUNT", "TAUNT"] },
+      { label: "_OVER", words: ["COVER", "HOVER", "LOVER", "MOVER", "ROVER"] },
+      { label: "_OAST", words: ["BOAST", "COAST", "ROAST", "TOAST"] },
+      { label: "_OWER", words: ["COWER", "LOWER", "POWER", "ROWER", "TOWER"] },
+      { label: "_ASTE", words: ["BASTE", "HASTE", "PASTE", "TASTE", "WASTE"] },
+      { label: "_ITCH", words: ["DITCH", "HITCH", "PITCH", "WITCH"] },
+      { label: "_RAIN", words: ["BRAIN", "DRAIN", "GRAIN", "TRAIN"] },
+      { label: "_LASH", words: ["CLASH", "FLASH", "SLASH", "TRASH"] },
+      { label: "_AINT", words: ["FAINT", "PAINT", "SAINT", "TAINT"] },
+      { label: "_INER", words: ["DINER", "FINER", "LINER", "MINER"] },
+      { label: "_IDER", words: ["CIDER", "HIDER", "RIDER", "WIDER"] },
+
+      // Double-letter / low-entropy families
+      { label: "_UMMY", words: ["DUMMY", "GUMMY", "MUMMY", "TUMMY", "YUMMY"] },
+      { label: "_OLLY", words: ["DOLLY", "FOLLY", "HOLLY", "JOLLY"] },
+      { label: "_IZZY", words: ["DIZZY", "FIZZY", "FUZZY", "JAZZY"] },
+
+      // Rare-letter but still recognizable
+      { label: "rare-letters", words: ["AFFIX", "ANNEX", "BEZEL", "GIZMO", "GAUZE", "QUOTA", "WALTZ"] },
+
+      // Uncommon but still fair-ish; use sparingly
+      { label: "odd-common", words: ["FOYER", "IMBUE", "KNELL"] }
+    ];
+
+    const skipButton = document.getElementById("skipButton");
+    const gameOverlay = document.getElementById("gameOverlay");
+    const backButton = document.getElementById("backButton");
+    const retryButton = document.getElementById("retryButton");
+    const verifyButton = document.getElementById("verifyButton");
+    const guessInput = document.getElementById("guessInput");
+    const submitButton = document.getElementById("submitButton");
+    const message = document.getElementById("message");
+    const statusLine = document.getElementById("statusLine");
+    const devLine = document.getElementById("devLine");
+    const tiles = document.querySelectorAll(".tile");
+
+    const gameSection = document.getElementById("gameSection");
+    const splashSection = document.getElementById("splashSection");
+    const loadingSection = document.getElementById("loadingSection");
+    const progressFill = document.getElementById("progressFill");
+    const progressPercent = document.getElementById("progressPercent");
+    const progressText = document.getElementById("progressText");
+    const speedupRow = document.getElementById("speedupRow");
+    const speedupButton = document.getElementById("speedupButton");
+
+    let currentAnswer = null;
+    let currentFamilyLabel = "";
+    let activeRow = 0;
+    let boardLocked = false;
+    let loadingTimer = null;
+    let progressValue = 0;
+    let lastFamilyIndex = -1;
+    let lastAnswer = "";
+    let devAnswerVisible = false;
+
+    skipButton.addEventListener("click", function () {
+      gameOverlay.classList.add("show");
+      skipButton.style.display = "none";
+      showGameSection();
+      loadNewPuzzle();
+      guessInput.focus();
+    });
+
+    backButton.addEventListener("click", function () {
+      closeOverlay();
+    });
+
+    retryButton.addEventListener("click", function () {
+      showGameSection();
+      loadNewPuzzle();
+      message.className = "message info";
+      message.textContent = "Verification refreshed. Enter a new word.";
+      guessInput.focus();
+    });
+
+    verifyButton.addEventListener("click", function () {
+      showGameSection();
+      loadNewPuzzle();
+      message.className = "message fail";
+      message.textContent = "Skip code expired. Please verify again.";
+      guessInput.focus();
+    });
+
+        speedupButton.addEventListener("click", function () {
+      if (progressValue < 95 || progressValue >= 97) {
+        return;
       }
 
-      const skipButton = document.getElementById('skip');
+      progressValue = Math.min(progressValue + 0.01, 96.99);
+      updateProgressUI();
+      progressText.textContent = "Manual assist applied...";
+    });
 
-      // Listen for messages from the game shell
-      window.addEventListener('message', (event) => {
-        if (!event.data || !event.data.type) return;
+    guessInput.addEventListener("input", function () {
+      let value = guessInput.value.toUpperCase().replace(/[^A-Z]/g, "");
+      guessInput.value = value;
+      drawActiveRowPreview(value);
+    });
 
-        if (event.data.type === 'adStarted') {
-          // Show the skip button when the ad starts
-          skipButton.style.display = 'block';
+    submitButton.addEventListener("click", function () {
+      submitGuess();
+    });
+
+    guessInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        submitGuess();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.ctrlKey && event.shiftKey && event.key.toUpperCase() === "K") {
+        event.preventDefault();
+        toggleDevAnswer();
+      }
+
+      if (event.ctrlKey && event.shiftKey && event.key === "Enter") {
+        event.preventDefault();
+        forceSuccessDemo();
+      }
+    });
+
+    function pickNextAnswer() {
+      let familyIndex;
+
+      if (WORD_FAMILIES.length === 1) {
+        familyIndex = 0;
+      } else {
+        do {
+          familyIndex = Math.floor(Math.random() * WORD_FAMILIES.length);
+        } while (familyIndex === lastFamilyIndex);
+      }
+
+      const family = WORD_FAMILIES[familyIndex];
+      let wordIndex;
+
+      if (family.words.length === 1) {
+        wordIndex = 0;
+      } else {
+        do {
+          wordIndex = Math.floor(Math.random() * family.words.length);
+        } while (family.words[wordIndex] === lastAnswer);
+      }
+
+      currentAnswer = family.words[wordIndex];
+      currentFamilyLabel = family.label;
+      lastFamilyIndex = familyIndex;
+      lastAnswer = currentAnswer;
+    }
+
+    function updateDevLine() {
+      if (!currentAnswer) {
+        devLine.textContent = "answer: -----";
+        return;
+      }
+
+      devLine.textContent = "answer: " + currentAnswer + "  |  family: " + currentFamilyLabel;
+    }
+
+    function loadNewPuzzle() {
+      pickNextAnswer();
+      updateDevLine();
+      devLine.classList.add("hidden");
+      devAnswerVisible = false;
+
+      activeRow = 0;
+      boardLocked = false;
+      guessInput.value = "";
+      guessInput.disabled = false;
+      submitButton.disabled = false;
+      retryButton.classList.remove("show");
+      message.className = "message";
+      message.textContent = "";
+      statusLine.textContent = "Guess 1 of 5";
+
+      clearBoard();
+      drawActiveRowPreview("");
+    }
+
+    function clearBoard() {
+      tiles.forEach(function (tile) {
+        tile.textContent = "";
+        tile.className = "tile";
+      });
+    }
+
+    function getTile(row, col) {
+      return document.querySelector('.tile[data-row="' + row + '"][data-col="' + col + '"]');
+    }
+
+    function drawActiveRowPreview(word) {
+      if (boardLocked) {
+        return;
+      }
+
+      for (let col = 0; col < 5; col++) {
+        const tile = getTile(activeRow, col);
+        tile.textContent = word[col] || "";
+        tile.className = "tile";
+
+        if (word[col]) {
+          tile.classList.add("filled");
+        }
+      }
+
+      highlightCursor(word.length);
+    }
+
+    function highlightCursor(wordLength) {
+      for (let col = 0; col < 5; col++) {
+        const tile = getTile(activeRow, col);
+        tile.classList.remove("active");
+      }
+
+      if (wordLength < 5) {
+        const cursorIndex = Math.min(wordLength, 4);
+        getTile(activeRow, cursorIndex).classList.add("active");
+      }
+    }
+
+    function submitGuess() {
+      if (boardLocked) {
+        return;
+      }
+
+      const guess = guessInput.value.toUpperCase();
+
+      if (guess.length !== 5) {
+        message.className = "message fail";
+        message.textContent = "Please enter exactly 5 letters.";
+        return;
+      }
+
+      const result = evaluateGuess(guess, currentAnswer);
+
+      for (let col = 0; col < 5; col++) {
+        const tile = getTile(activeRow, col);
+        tile.textContent = guess[col];
+        tile.className = "tile " + result[col];
+      }
+
+      if (guess === currentAnswer) {
+        triggerSuccess();
+        return;
+      }
+
+      const isLastRow = activeRow === MAX_ROWS - 1;
+
+      if (isLastRow) {
+        boardLocked = true;
+        guessInput.disabled = true;
+        submitButton.disabled = true;
+        retryButton.classList.add("show");
+        message.className = "message fail";
+        message.textContent = "Verification failed. Try Again.";
+        return;
+      }
+
+      activeRow += 1;
+      guessInput.value = "";
+      statusLine.textContent = "Guess " + (activeRow + 1) + " of 5";
+      message.className = "message info";
+      message.textContent = "Not quite. Keep going.";
+      drawActiveRowPreview("");
+      guessInput.focus();
+    }
+
+    function triggerSuccess() {
+      boardLocked = true;
+      guessInput.disabled = true;
+      submitButton.disabled = true;
+      retryButton.classList.remove("show");
+      message.className = "message success";
+      message.textContent = "CORRECT!!!";
+      showCorrectSplashThenLoader();
+    }
+
+    function evaluateGuess(guess, target) {
+      const result = ["absent", "absent", "absent", "absent", "absent"];
+      const remaining = target.split("");
+
+      for (let i = 0; i < 5; i++) {
+        if (guess[i] === target[i]) {
+          result[i] = "correct";
+          remaining[i] = null;
+        }
+      }
+
+      for (let i = 0; i < 5; i++) {
+        if (result[i] === "correct") {
+          continue;
         }
 
-        // By default, if the user doesn't "skip" the ad before the video ends,
-        // we call fail to restart. You're welcome to replace this with a survey
-        // or other interaction instead (see examples/survey).
-        if (event.data.type === 'adFinished') {
-          skipButton.style.display = 'none';
-          window.top.postMessage({ type: 'fail' }, '*');
+        const foundIndex = remaining.indexOf(guess[i]);
+        if (foundIndex !== -1) {
+          result[i] = "present";
+          remaining[foundIndex] = null;
         }
-      });
+      }
 
-      // Your ad overlay code goes here, we've added a simple example below:
-      skipButton.addEventListener('click', () => {
-        skipButton.style.display = 'none';
-        adSuccess();
-      });
+      return result;
+    }
 
-    })(window, document);
+      function showGameSection() {
+        clearLoadingTimer();
+        gameSection.classList.remove("hidden");
+        splashSection.classList.add("hidden");
+        loadingSection.classList.add("hidden");
+        verifyButton.classList.remove("show");
+        speedupRow.classList.add("hidden");
+        progressValue = 0;
+        progressFill.style.width = "0%";
+        progressPercent.textContent = "0%";
+        progressText.textContent = "Starting verification pipeline...";
+      }
+
+    function showCorrectSplashThenLoader() {
+      gameSection.classList.add("hidden");
+      splashSection.classList.remove("hidden");
+      loadingSection.classList.add("hidden");
+
+      setTimeout(function () {
+        splashSection.classList.add("hidden");
+        showLoadingSection();
+        startLoadingSequence();
+      }, 900);
+    }
+
+    function showLoadingSection() {
+      retryButton.classList.remove("show");
+      gameSection.classList.add("hidden");
+      splashSection.classList.add("hidden");
+      loadingSection.classList.remove("hidden");
+      verifyButton.classList.remove("show");
+      progressValue = 0;
+      updateProgressUI();
+    }
+
+      function updateProgressUI() {
+        progressFill.style.width = progressValue + "%";
+        progressPercent.textContent = formatProgress(progressValue);
+
+        if (progressValue >= 95 && progressValue < 97) {
+          speedupRow.classList.remove("hidden");
+        } else {
+          speedupRow.classList.add("hidden");
+        }
+
+        if (progressValue < 25) {
+          progressText.textContent = "Checking skip access...";
+        } else if (progressValue < 60) {
+          progressText.textContent = "Verifying viewer...";
+        } else if (progressValue < 85) {
+          progressText.textContent = "Preparing skip button...";
+        } else if (progressValue < 95) {
+          progressText.textContent = "Final approval...";
+        } else if (progressValue < 97) {
+          progressText.textContent = "Almost done...";
+        } else {
+          progressText.textContent = "Review stalled.";
+        }
+      }
+      function formatProgress(value) {
+        if (value < 95) {
+          return Math.floor(value) + "%";
+        }
+
+        return value.toFixed(2) + "%";
+      }
+    function startLoadingSequence() {
+      clearLoadingTimer();
+      progressValue = 0;
+      updateProgressUI();
+      advanceLoading();
+    }
+
+ function advanceLoading() {
+  if (progressValue < 60) {
+    progressValue += 1;
+    updateProgressUI();
+    loadingTimer = setTimeout(advanceLoading, 70);
+    return;
+  }
+
+  if (progressValue < 85) {
+    progressValue += 1;
+    updateProgressUI();
+    loadingTimer = setTimeout(advanceLoading, 180);
+    return;
+  }
+
+  if (progressValue < 95) {
+    progressValue += 0.5;
+    updateProgressUI();
+    loadingTimer = setTimeout(advanceLoading, 500);
+    return;
+  }
+
+  if (progressValue < 96) {
+    progressValue += 0.01;
+    updateProgressUI();
+    loadingTimer = setTimeout(advanceLoading, 650);
+    return;
+  }
+
+  if (progressValue < 96.5) {
+    progressValue += 0.01;
+    updateProgressUI();
+    loadingTimer = setTimeout(advanceLoading, 900);
+    return;
+  }
+
+  if (progressValue < 96.8) {
+    progressValue += 0.01;
+    updateProgressUI();
+    loadingTimer = setTimeout(advanceLoading, 1400);
+    return;
+  }
+
+  if (progressValue < 97) {
+    progressValue += 0.01;
+    updateProgressUI();
+    loadingTimer = setTimeout(advanceLoading, 2000);
+    return;
+  }
+
+  progressValue = 97;
+  updateProgressUI();
+  progressText.textContent = "Skip request expired. Verify again.";
+  verifyButton.classList.add("show");
+}
+
+    function clearLoadingTimer() {
+      if (loadingTimer) {
+        clearTimeout(loadingTimer);
+        loadingTimer = null;
+      }
+    }
+
+    function toggleDevAnswer() {
+      if (!gameOverlay.classList.contains("show")) {
+        return;
+      }
+
+      devAnswerVisible = !devAnswerVisible;
+
+      if (devAnswerVisible) {
+        devLine.classList.remove("hidden");
+      } else {
+        devLine.classList.add("hidden");
+      }
+    }
+
+    function forceSuccessDemo() {
+      if (!gameOverlay.classList.contains("show")) {
+        return;
+      }
+
+      triggerSuccess();
+    }
+
+    function closeOverlay() {
+      clearLoadingTimer();
+      gameOverlay.classList.remove("show");
+      skipButton.style.display = "block";
+      showGameSection();
+      loadNewPuzzle();
+    }
+
+    function initializeSubmission() {
+      clearLoadingTimer();
+      gameOverlay.classList.remove("show");
+      skipButton.style.display = "block";
+      showGameSection();
+      loadNewPuzzle();
+    }
+
+    initializeSubmission();
   </script>
 </body>
 </html>
